@@ -33,7 +33,7 @@ public final class SessionUtil {
 	/** Cambia la sesión activa del cliente al nombre indicado, sin reiniciar el juego. */
 	public static void switchSession(String name) {
 		UUID uuid = offlineUuid(name);
-		User newUser = new User(name, uuid, "AltManager", Optional.empty(), Optional.empty(), User.Type.LEGACY);
+		User newUser = new User(name, uuid, "AltManager", Optional.empty(), Optional.empty());
 		((MinecraftSessionAccessor) Minecraft.getInstance()).altmanager$setUser(newUser);
 	}
 
