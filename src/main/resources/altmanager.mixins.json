@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "com.altmanager.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"TitleScreenMixin",
+		"MinecraftMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
