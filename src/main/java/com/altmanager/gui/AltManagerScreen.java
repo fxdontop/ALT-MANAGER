@@ -3,12 +3,15 @@ package com.altmanager.gui;
 import com.altmanager.data.Profile;
 import com.altmanager.data.ProfileManager;
 import com.altmanager.session.SessionUtil;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 
+import java.awt.Color;
 import java.util.List;
 
 /**
@@ -19,7 +22,7 @@ import java.util.List;
 public class AltManagerScreen extends Screen {
 
 	private static final int ROW_HEIGHT = 24;
-	private static final int LIST_TOP = 60;
+	private static final int LIST_TOP = 65;
 
 	private final Screen parent;
 	private EditBox nameField;
@@ -27,6 +30,9 @@ public class AltManagerScreen extends Screen {
 
 	/** Si no es null, estamos editando este perfil en vez de añadir uno nuevo. */
 	private String editingProfileId = null;
+
+	/** Posición Y de la fila del perfil seleccionado, para pintar el resaltado detrás de los botones. -1 = ninguno. */
+	private int selectedRowY = -1;
 
 	public AltManagerScreen(Screen parent) {
 		super(Component.literal("Alt Manager"));
@@ -39,12 +45,12 @@ public class AltManagerScreen extends Screen {
 
 		int centerX = this.width / 2;
 
-		this.nameField = new EditBox(this.font, centerX - 150, 30, 200, 20,
+		this.nameField = new EditBox(this.font, centerX - 150, 35, 200, 20,
 				Component.literal("Nombre del perfil"));
 		this.nameField.setMaxLength(32);
 
 		this.confirmButton = Button.builder(Component.literal("Añadir"), button -> onConfirm())
-				.bounds(centerX + 55, 30, 95, 20)
+				.bounds(centerX + 55, 35, 95, 20)
 				.build();
 
 		rebuildList();
@@ -97,12 +103,21 @@ public class AltManagerScreen extends Screen {
 
 		int centerX = this.width / 2;
 		int y = LIST_TOP;
+		this.selectedRowY = -1;
 
 		for (Profile profile : profiles) {
 			boolean isSelected = profile.getId().equals(selectedId);
-			String label = (isSelected ? "» " : "") + profile.getName();
+			if (isSelected) {
+				this.selectedRowY = y;
+			}
 
-			this.addRenderableWidget(Button.builder(Component.literal(label), button -> onUse(profile))
+			Component nameComponent = isSelected
+					? Component.literal("★ " + profile.getName())
+							.withStyle(ChatFormatting.BOLD)
+							.withStyle(style -> style.withColor(TextColor.fromRgb(0xFFD700))) // dorado
+					: Component.literal(profile.getName());
+
+			this.addRenderableWidget(Button.builder(nameComponent, button -> onUse(profile))
 					.bounds(centerX - 150, y, 110, 20)
 					.build());
 
@@ -130,16 +145,39 @@ public class AltManagerScreen extends Screen {
 		}
 	}
 
+	/** Calcula un color que va rotando en el tiempo, para un efecto de texto "arcoíris". */
+	private static int rainbowColor(int offset) {
+		float time = System.currentTimeMillis() / 12f;
+		float hue = ((time + offset * 18f) % 360f) / 360f;
+		return Color.HSBtoRGB(hue, 0.6f, 1.0f) & 0xFFFFFF;
+	}
+
+	/** Dibuja un texto letra por letra, cada una con un color distinto que rota con el tiempo. */
+	private void drawRainbowText(GuiGraphics context, String text, int startX, int y) {
+		int x = startX;
+		for (int i = 0; i < text.length(); i++) {
+			String letter = String.valueOf(text.charAt(i));
+			context.drawString(this.font, letter, x, y, rainbowColor(i));
+			x += this.font.width(letter);
+		}
+	}
+
 	@Override
 	public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+		// Resaltado detrás de la fila del perfil seleccionado (se dibuja antes que los botones).
+		if (this.selectedRowY >= 0) {
+			int centerX = this.width / 2;
+			context.fill(centerX - 155, this.selectedRowY - 2, centerX + 175, this.selectedRowY + 22, 0x552ECC71);
+			context.fill(centerX - 155, this.selectedRowY - 2, centerX - 153, this.selectedRowY + 22, 0xFF2ECC71);
+		}
+
 		super.render(context, mouseX, mouseY, delta);
 
 		context.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
 
-		String activeSession = SessionUtil.getActiveUsername();
-		context.drawCenteredString(this.font,
-				Component.literal("Sesión activa: " + activeSession),
-				this.width / 2, 20, 0x55FF55);
+		String label = "Sesión activa: " + SessionUtil.getActiveUsername();
+		int textWidth = this.font.width(label);
+		drawRainbowText(context, label, this.width / 2 - textWidth / 2, 22);
 
 		List<Profile> profiles = ProfileManager.get().getProfiles();
 		if (profiles.isEmpty()) {
